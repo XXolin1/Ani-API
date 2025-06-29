@@ -1,0 +1,8 @@
+# Dépendances PHP
+/vendor/
+
+# Fichiers d'environnement
+.env
+
+# Logs
+*.log

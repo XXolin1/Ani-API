@@ -12,7 +12,7 @@ class BdBase {
 
     private $dsn = 'mysql:host=' . self::DBHOST . ';dbname=' . self::DBNAME . '';
 	  // conn variable
-	protected $conn = null;
+	  protected $conn = null;
 
     protected $db = null;
 

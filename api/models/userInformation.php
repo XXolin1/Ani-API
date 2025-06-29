@@ -1,40 +1,31 @@
 <?php
 
-/* cree class bdd autre fichier */
+session_start();
 
 require_once ("./models/BdBase.php");
-/*
-function getConnexion(){ // a ajuster par rapport au host
-    return new PDO("mysql:host=129.151.245.210;dbname=bojob;charset=utf8","bojob","D3sZaxBKdAwEzLxZ");
-}*/
-/*
-function sendJSON($infos){ // fonction d'envoi en JSON.
-    header("Access-Control-Allow-Origin: *"); // ressource accessible par n'importe quelle origine.
-    header("Content-Type: application/json"); // corps de la réponse au format JSON
-    echo json_encode($infos,JSON_UNESCAPED_UNICODE); // encode en prenant en compte les caractères unicode.
-}*/
 
-class Anime extends BdBase
+class UserInformations extends BdBase
 {
 
     // variable
     private $req;
     private $data;
+    private $id;
 
     // constructeur
 
-    public function __construct($param)
+    public function __construct($param, $id)
     {
         parent::__construct();
 
         foreach ($param as $key => $value) {
             // Assigner la valeur de $param à la propriété de l'objet
             $this->$key = $value;
-
         }
 
-        // pour le POST (non utilisé pour le moment)
+        $this->id = $id;
 
+        // pour le POST (non utilisé pour le moment)
         $data = array(
 
         );
@@ -47,12 +38,12 @@ class Anime extends BdBase
     }
 
     // méthode de requete
-    public function Allanime()
+    public function simpleExtensionUserInformations()
     {
-        $this->req = "SELECT * FROM anime";
+        $this->req = "SELECT users.uid, users.username, users.mail FROM users WHERE users.id_users = :id_user;";
 
         $stmt = $this->conn->prepare($this->req);
-
+        $stmt->bindParam(':id_user', $this->id);
         $this->prepaQuery($stmt);
         return $this->data;
     }
@@ -68,5 +59,10 @@ class Anime extends BdBase
         }
         $this->data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $stmt->closeCursor();
+    }
+
+    public function getIdUser()
+    {
+        
     }
 }

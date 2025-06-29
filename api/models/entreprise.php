@@ -1,6 +1,6 @@
 <?php
 
-session_start();
+
 /* cree class bdd autre fichier */
 
 require_once ("./class/BdBase.php");
