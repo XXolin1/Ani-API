@@ -6,7 +6,6 @@ require_once("./models/BdBase.php");
 
 class Authentication extends BdBase
 {
-
     private $user_id;
     private $pseudo;
     private $password;
@@ -17,96 +16,89 @@ class Authentication extends BdBase
     private $jwt;
     private $decodedToken;
 
-
     public function __construct()
     {
         parent::__construct();
-
-        header("Content-type: text/plain");
+        header("Content-type: application/json");
     }
-
-    /*
-        public function creation()
-        {
-            if (!isset($_POST["login"], $_POST["password"], $_POST["email"], $_POST["age"])) {
-                exit(0);
-            }
-            $this->pseudo = $_POST["login"];
-            $this->password = $_POST["password"];
-            $this->email = $_POST["email"];
-            $this->age = $_POST["age"];
-        }
-    */
 
     public function connexion()
     {
-        if (!isset($_POST["mail"], $_POST["password"])) {
-            exit(0);
+        // Unifie la récupération des données POST ou JSON
+        $payload = $_POST;
+        if (empty($payload)) {
+            $input = file_get_contents('php://input');
+            $payload = json_decode($input, true) ?: [];
         }
 
-        if ($_POST["id_users"]) {
-            $this->user_id = $_POST["id_users"];
+        // Cas de renouvellement de token avec id_users
+        if (isset($payload["id_users"])) {
+            $this->user_id = $payload["id_users"];
             $this->jwt = $this->generateJwtToken();
-            return $this->jwt;
-        } 
-        else {
-            $this->mail = $_POST["mail"];
-            $this->password = $_POST["password"]; // voir password_hash pour cryptage.  
+            // Retourne toujours sous forme de tableau pour JSON
+            return ['token' => $this->jwt];
+        }
 
-            if ($this->Login()) {
+        // Cas connexion classique
+        if (!isset($payload["mail"], $payload["password"])) {
+            // Manque paramètres
+            return [
+                'success' => false,
+                'error' => 'Paramètres mail ou password manquants'
+            ];
+        }
 
-                $this->jwt = $this->generateJwtToken();
+        $this->mail = $payload["mail"];
+        $this->password = $payload["password"];
 
-                return $this->jwt;
-
-            } else {
-                // Authentification echouee         
-                return false;
-            }
+        if ($this->Login()) {
+            $this->jwt = $this->generateJwtToken();
+            return ['token' => $this->jwt];
+        } else {
+            // Authentification échouée
+            return [
+                'success' => false,
+                'error' => 'Identifiants invalides ou utilisateur non trouvé'
+            ];
         }
     }
 
-
     private function Login()
     {
-        $this->req = "SELECT * FROM users WHERE mail=:mail;"; // a modif
+        $this->req = "SELECT * FROM users WHERE mail=:mail;";
         $stmt = $this->conn->prepare($this->req);
 
         try {
             $stmt->execute([':mail' => $this->mail]);
         } catch (PDOException $e) {
-            echo "Erreur lors de l'exécution de la requête : " . $e->getMessage();
+            // Log ou gérer proprement l'erreur en prod
+            return false;
         }
 
-        // Vérifier s'il y a un utilisateur avec ce nom d'utilisateur
         $user = $stmt->fetch();
         if (!$user) {
-            return false; // Aucun utilisateur trouvé avec ce nom d'utilisateur
+            return false;
         }
 
-        // Verifier si le mot de passe est correct
+        // Vérifier si le mot de passe est correct
         if ($this->password === $user['password']) {
-            // Authentification réussie
-            //$_SESSION['type_utilisateur'] = $user['type_utilisateur']; // Stocker le type d'utilisateur dans la session
             $this->data = $user;
-
-            $this->user_id = $user['id_users']; // Stocker l'ID de l'utilisateur
+            $this->user_id = $user['id_users'];
             return true;
         } else {
-            // Mot de passe incorrect
             return false;
         }
     }
 
-    private function generateJwtToken() // Génération du token JWT
+    private function generateJwtToken()
     {
         $payload = [
-            'iss' => 'http://localhost/',                  // Émetteur (issuer)
-            'aud' => 'http://localhost/',                  // Destinataire (audience)
-            'sub' => $this->user_id,                          // Sujet (souvent identifiant unique ou email)
-            'iat' => time(),                               // Date d’émission
-            'exp' => time() + 3600,                        // Expiration à +1h
-            'uid' => $this->user_id                        // ID utilisateur
+            'iss' => 'http://localhost/',
+            'aud' => 'http://localhost/',
+            'sub' => $this->user_id,
+            'iat' => time(),
+            'exp' => time() + 20,
+            'uid' => $this->user_id
         ];
 
         return JWT::encode($payload, $_ENV['JWT_SECRET'], 'HS256');

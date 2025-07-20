@@ -17,18 +17,61 @@ $uri = strtolower($_SERVER['REQUEST_URI']);
 // Liste des routes autorisées sans token, aussi en minuscules
 $noAuthRoutes = ['/ani-api/api/connexion'];
 
+// Normalisation de la route appelée
+$uri = strtolower(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+
 if (!in_array($uri, $noAuthRoutes)) {
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
+        // Récupération robuste du header Authorization
+    $headers = getallheaders(); // Récupère tous les headers de la requête
+    $authHeader = null;
+
+    if (isset($headers['Authorization'])) { // Pour les serveurs qui respectent la casse
+        $authHeader = $headers['Authorization'];
+    } 
+    elseif (isset($headers['authorization'])) {
+        $authHeader = $headers['authorization']; // Pour les serveurs qui ne respectent pas la casse
+    }
+
+
     if ($authHeader && preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
         $token = $matches[1];
 
-        require_once("./models/decodeToken.php");
+        require_once("./models/DecodeToken.php");
         $decodeToken = new DecodeToken();
-        $decodedToken = $decodeToken->verify_jwt($token);
+        $result = $decodeToken->verify_jwt($token);
+
+        switch ($result['status']) {
+            case 'valid':
+                $userId = $result['id_users'];
+                // continue l'exécution
+                break;
+
+            case 'expired':
+                http_response_code(403);
+                echo json_encode([
+                    "status" => "expired",
+                    "message" => "Token expiré, renouvellement possible",
+                    "id_users" => $result['id_users']
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+
+            case 'invalid_signature':
+            case 'invalid':
+            default:
+                http_response_code(403);
+                echo json_encode([
+                    "status" => "invalid",
+                    "message" => $result['message'],
+                    "id_users" => $result['id_users']
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+        }
 
     } else {
         http_response_code(401);
-        echo json_encode(["error" => "Token Bearer manquant ou invalide"]);
+        echo json_encode([
+            "error" => "Token Bearer manquant ou mal formé"
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }

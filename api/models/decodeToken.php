@@ -6,80 +6,57 @@ use Firebase\JWT\SignatureInvalidException;
 
 class DecodeToken
 {
-    public function __construct()
-    {
-        //// Assurez-vous que la bibliothèque JWT est chargée
-        //require_once "/vendor/autoload.php";
-        //if (!isset($_ENV['JWT_SECRET'])) {
-        //    throw new Exception("La clé secrète JWT n'est pas définie dans l'environnement.");
-        //}
-    }
-
-    function verify_jwt($token)
+    public function verify_jwt($token)
     {
         try {
             $decodedToken = JWT::decode($token, new Key($_ENV['JWT_SECRET'], 'HS256'));
 
-            // Vérifications de sécurité personnalisées
+            // Vérification personnalisée
             if (
                 $decodedToken->iss !== 'http://localhost/' ||
                 $decodedToken->aud !== 'http://localhost/' ||
                 empty($decodedToken->sub)
             ) {
-                throw new Exception("Token invalide");
+                throw new Exception("Token invalide : claims incorrects");
             }
 
-            if ($decodedToken->exp < time()) {
-                throw new Exception("Token expiré");
-            }
-
-            $id_users = $decodedToken->uid;
-
-            return $id_users;
+            return [
+                "status" => "valid",
+                "id_users" => $decodedToken->uid
+            ];
 
         } catch (ExpiredException $e) {
-            // Décodage sans vérification de signature pour récupérer le payload
-            $parts = explode('.', $token);
-            if (count($parts) === 3) {
-                $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-                $id_users = $payload['uid'] ?? null;
-            } else {
-                $id_users = null;
-            }
-
-            http_response_code(403);
-            echo json_encode([
-                "message" => "Token expiré, renouvellement possible",
-                "erreur" => $e->getMessage(),
-                "id_users" => $id_users
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
+            // Décoder sans signature pour récupérer le payload
+            $payload = $this->decodePayload($token);
+            return [
+                "status" => "expired",
+                "id_users" => $payload['uid'] ?? null,
+                "message" => "Token expiré"
+            ];
 
         } catch (SignatureInvalidException $e) {
-            http_response_code(403);
-            echo json_encode([
-                "message" => "Signature du token invalide",
-                "erreur" => $e->getMessage(),
-                "id_users" => null
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
+            return [
+                "status" => "invalid_signature",
+                "id_users" => null,
+                "message" => "Signature du token invalide"
+            ];
 
         } catch (Exception $e) {
-            // Gestion des autres erreurs
-            $parts = explode('.', $token);
-            if (count($parts) === 3) {
-                $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-                $id_users = $payload['uid'] ?? null;
-            } else {
-                $id_users = null;
-            }
-
-            http_response_code(403);
-            echo json_encode([
-                "message" => "Token invalide",
-                "erreur" => $e->getMessage(),
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
+            $payload = $this->decodePayload($token);
+            return [
+                "status" => "invalid",
+                "id_users" => $payload['uid'] ?? null,
+                "message" => "Token invalide"
+            ];
         }
+    }
+
+    private function decodePayload($token)
+    {
+        $parts = explode('.', $token);
+        if (count($parts) === 3) {
+            return json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+        }
+        return [];
     }
 }
