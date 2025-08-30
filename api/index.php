@@ -1,4 +1,6 @@
 <?php
+
+use GrahamCampbell\ResultType\Success;
 header("Access-Control-Allow-Origin: *"); 
 header("Content-Type: application/json"); 
 header("Access-Control-Allow-Methods: GET,HEAD,OPTIONS,POST,PUT");
@@ -121,7 +123,7 @@ try {
                 require_once("./models/session.php");
                 $reqConnexion = new Authentication();
                 $connexion = $reqConnexion->connexion();
-                sendResponse($connexion); // retourne true ou false
+                CheckConnexion($connexion);
                 exit(0);
 
             case "entreprises":
@@ -166,5 +168,29 @@ function sendResponse($response)
 
 function CheckConnexion($Connexion)
 {
-    echo $Connexion ? "true" : "false";
+    if (isset($Connexion['success']) && $Connexion['success'] === false) {
+        // Mauvaise authentification
+        http_response_code(401);
+        echo json_encode([
+            'error' => $Connexion['error'] ?? 'Unauthorized'
+        ]);
+        exit;
+    }
+
+    // Si on a un token, connexion réussie
+    if (isset($Connexion['success']) && isset($Connexion['token'])) {
+        http_response_code(200);
+        echo json_encode([
+            'success' => true,
+            'token'   => $Connexion['token']
+        ]);
+        exit;
+    }
+
+    // Cas imprévu
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Erreur interne'
+    ]);
+    exit;
 }

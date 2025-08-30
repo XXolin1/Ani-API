@@ -36,7 +36,10 @@ class Authentication extends BdBase
             $this->user_id = $payload["id_users"];
             $this->jwt = $this->generateJwtToken();
             // Retourne toujours sous forme de tableau pour JSON
-            return ['token' => $this->jwt];
+            return [
+            'success' => true,
+            'token'   => $this->jwt
+        ];
         }
 
         // Cas connexion classique
@@ -53,7 +56,10 @@ class Authentication extends BdBase
 
         if ($this->Login()) {
             $this->jwt = $this->generateJwtToken();
-            return ['token' => $this->jwt];
+            return [
+            'success' => true,
+            'token'   => $this->jwt
+        ];
         } else {
             // Authentification échouée
             return [
@@ -97,7 +103,7 @@ class Authentication extends BdBase
             'aud' => 'http://localhost/',
             'sub' => $this->user_id,
             'iat' => time(),
-            'exp' => time() + 20,
+            'exp' => time() + 20, // valeur de dev
             'uid' => $this->user_id
         ];
 
