@@ -107,6 +107,6 @@ class Authentication extends BdBase
             'uid' => $this->user_id
         ];
 
-        return JWT::encode($payload, $_ENV['JWT_SECRET'], 'HS256');
+        return JWT::encode($payload, $_ENV['JWT_SECRET'], $_ENV['JWT_ALGO']);
     }
 }
